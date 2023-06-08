@@ -1,0 +1,154 @@
+<% layout('layouts/boilerplate') %>
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-3 border-end border-dark p-0">  
+            <% for (chatroom of currentUser.chatrooms) { %>
+                <div class="chatroom container bg-primary py-4 border-bottom border-dark" id="<%= chatroom._id %>" style="cursor: pointer">
+                    <h2 style="pointer-events: none"><%= chatroom.name %></h2>
+                    <h5 style="pointer-events: none">
+                        <% for (user of chatroom.users) { %>
+                            <%= user.username %>
+                        <% } %>
+                    </h5>
+                </div>
+            <% } %>
+        </div>
+        <div class="col-9 p-0" id="chatWindow">
+            <div class="w-100" id="messageWindow">
+                
+            </div>
+
+            <div class="fixed-bottom start-50 w-70">
+                <form action="/chat" method="post" class="py-2" id="chatbox">
+                    <div class="input-group">
+                        <div class="chatFunctionality" hidden>
+                            <textarea class="form-control" rows="4" cols="50" name="content" id="chatContent"></textarea>
+                        </div>
+                        <div class="chatFunctionality" hidden>
+                            <button type="submit" class="btn btn-dark h-100">Send</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const currentUser = `<%= currentUser._id %>`;
+    const messageWindow = document.querySelector("#messageWindow");
+    const chatbox = document.querySelector("#chatbox");
+
+    function displayMessage(message){
+        const newMessage = document.createElement('div');
+        const messageDate = new Date(message.createdAt);
+        const formattedMessageDate = `${messageDate.getDate()}/${messageDate.getMonth()}/${messageDate.getFullYear()} ${messageDate.getHours()}:${messageDate.getMinutes() < 10 ? '0' : ''}${messageDate.getMinutes()}`
+        if (currentUser == message.owner._id){
+            newMessage.innerHTML = 
+            `
+            <div class="container mb-3">
+                <div class="row d-flex justify-content-end">
+                    <div class="col-3 bg-success border rounded">
+                        <p class="fw-bold mt-1">${message.content}</p>
+                        <p class="fw-light mb-0 text-end">
+                            ${formattedMessageDate}
+                        </p>
+                        <p class="fw-light mb-0 text-end">
+                            ${message.owner.username}
+                        </p>
+                    </div>
+                </div> 
+            </div>
+            `
+        }
+        else{
+            newMessage.innerHTML = 
+            `
+            <div class="container mb-3">
+                <div class="row">
+                    <div class="col-3 bg-primary border rounded">
+                        <p class="fw-bold mt-1">${message.content}</p>
+                        <p class="fw-light mb-0 text-end">
+                            ${formattedMessageDate}
+                        </p>
+                        <p class="fw-light mb-0 text-end">
+                            ${message.owner.username}
+                        </p>
+                    </div>
+                </div> 
+            </div>
+            `
+        }
+        
+        messageWindow.append(newMessage);
+    }
+
+    function displayChat(chatroomData){
+        messageWindow.innerHTML = 
+            `<nav class="navbar bg-secondary mb-4"><h4 class="px-3">${chatroomData.name}</h2> </nav>`
+        chatroomData.messages.forEach((message) => {
+            displayMessage(message);
+        })
+
+        // Scuffed way to unhide the chatbox
+        const chatFunctionality = document.querySelectorAll(".chatFunctionality");
+        chatFunctionality.forEach((element) => {
+            element.hidden = false;
+        })
+    }
+
+    const chatroomLinks = document.querySelectorAll(".chatroom");
+    const chatroomLinksArray = [...chatroomLinks];
+    let chatroomData;
+    chatroomLinksArray.forEach((chatroomLink) => {
+        chatroomLink.addEventListener('click', async (e) => {
+            await axios.post('/enterChat', {
+                id: e.target.id
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            }).then((res) => {
+                chatroomData = res.data;
+                displayChat(chatroomData);
+
+                // Kinda scuffed way of implementing highlighting the selected chatroom
+                chatroomLinksArray.forEach((chatroomLink => {
+                    chatroomLink.classList.remove("bg-light")
+                }))
+                // console.log(chatroomData)
+                // querySelector unable to handle ids that start with numbers, so have to do it via [id =]
+                document.querySelector(`[id = "${chatroomData._id}"]`).classList.add("bg-light")
+            })
+        })
+    })
+
+    chatbox.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await axios.post('/chat', {
+            chatroom: chatroomData._id,
+            content: document.querySelector("#chatContent").value
+        },
+        {
+            headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }  
+        }).then(() => {
+            document.querySelector("#chatContent").value = "";
+        })
+    })
+
+    function onMessage({ newMessage, chatroom }){
+        if (chatroom == chatroomData._id){
+            // console.log(newMessage);
+            displayMessage(newMessage);
+        }
+    }
+
+    const socket = io();
+    socket.on('message', onMessage);
+</script>

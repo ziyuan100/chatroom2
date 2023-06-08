@@ -1,0 +1,121 @@
+<% layout('layouts/boilerplate') %>
+
+<div class="container-fluid d-flex justify-content-center mt-5">
+    <form class="col-3" id="addChatForm">
+        <div class="form-group mb-3">
+            <label for="chatName">
+                Chatroom Name
+            </label>
+            <input type="text" id="chatName" class="form-control" placeholder="Chatroom Name" required>
+        </div>
+        <div class="form-group mb-3">
+            <label for="searchedUser">
+                Add Users
+            </label>
+            <div class="form-row d-flex">
+                <div class="col-9 me-3">
+                    <div class="input-group">
+                        <span class="input-group-text">@</span>
+                        <input type="text" id="searchedUser" class="form-control" placeholder="Search Username">
+                    </div>
+                </div>
+                <div class="col-3">
+                    <button class="btn btn-dark" id="addUserBtn">Add User</button>
+                 </div>
+            </div>
+        </div>
+        <div class="form-group mb-5 col-6">
+            <ul class="list-group" id="addedUsersList">
+                <li class="list-group-item d-flex" id="<%= currentUser._id %>">
+                    <div class="me-auto">
+                        <%= currentUser.username %>
+                    </div>
+                    <div>
+                        <b>(Creator)</b>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Start Group</button>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+    const addChatForm = document.querySelector("#addChatForm")
+    const addUserBtn = document.querySelector("#addUserBtn");
+    // vscode linter can't understand EJS tags within script tags, but code still works. To avoid vscode prompting error, attaching EJS tags within quotes
+    let usersList = [`<%= currentUser._id %>`];
+
+    function removeUser(element){
+        const li = element.parentNode.parentNode;
+        usersList.splice(usersList.indexOf(li.id), 1)
+        // console.log(usersList)   
+        li.remove();
+        
+    }
+
+    addUserBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const searchedUser = document.querySelector("#searchedUser").value;
+        let data;
+
+        try {
+            ({ data } = await axios.post('/searchUser', {
+                searchedUser: searchedUser, 
+            }, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            }))
+        }
+        catch (e){
+            console.error(e)
+        }
+        
+        if (!usersList.includes(data._id)){
+            const addedUsersList = document.querySelector("#addedUsersList");
+            const li = document.createElement("li");
+            li.classList.add("list-group-item", "d-flex");
+            li.id = data._id
+            li.innerHTML = 
+            `
+            <div class="me-auto">
+                ${data.username}
+            </div>
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16" onclick="removeUser(this)">
+                    <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                </svg>
+            </div>
+            `
+            addedUsersList.append(li);
+            usersList.push(data._id)
+            // console.log(usersList)
+        }
+    })
+
+    addChatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        let data;
+        const chatName = document.querySelector("#chatName").value;
+        try {
+            ({ data } =  await axios.post('/newchat', {
+                name: chatName,
+                creator: "<%= currentUser._id %>",
+                users: usersList
+                }, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            }));
+
+            window.location.href = "/chat"
+        }
+        catch(e){
+            console.error(e);
+        }
+    })
+</script>
