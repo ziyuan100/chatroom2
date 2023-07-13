@@ -141,7 +141,7 @@ app.post('/chat', isLoggedIn, async (req, res) => {
     io.emit('message', {newMessage, chatroom});
 })
 
-app.post('/enterChat', async (req, res) => {
+app.post('/enterChat', isLoggedIn, async (req, res) => {
     const { id } = req.body 
     // console.log(id);
     const currentChatroom = await Chatroom.findOne({_id: id}).populate({
@@ -153,11 +153,11 @@ app.post('/enterChat', async (req, res) => {
     res.send(currentChatroom)
 })
 
-app.get('/newchat', isLoggedIn, (req, res) => {
+app.get('/newChat', isLoggedIn, (req, res) => {
     res.render('newchat');
 })
 
-app.post('/newchat', isLoggedIn, async (req, res) => {
+app.post('/newChat', isLoggedIn, async (req, res) => {
     const { name, creator, users } = req.body;
     const newChat = new Chatroom({
         name,
@@ -186,6 +186,33 @@ app.post('/searchUser', isLoggedIn, async (req, res) => {
     }
 })
  
+app.post('/leaveChat', isLoggedIn, async (req, res) => {
+    const { chatId } = req.body;
+    await User.updateOne(
+        {_id: req.user._id}, 
+        {$pull: {
+            chatrooms: chatId
+        }}
+    )
+    
+    const chatroom = await Chatroom.findOne({_id: chatId});
+    // if user is the last member in the chatroom, when user leaves, chatroom should be deleted
+    if (chatroom.users.length === 1){
+        await Chatroom.deleteOne({_id: chatId});
+    }
+    else {
+        await Chatroom.updateOne(
+            {_id: chatId},
+            {$pull: {
+                users: req.user._id
+            }}
+        )
+    }
+    // TAKE NOTE: using axios post, you will not be able to redirect via server-side. Same issue with post/newChat
+    // Why tf does res.send let me proceed to next line in the leaveChat function but res.status doesnt??
+    res.send("Success")
+})
+
 server.listen(3000, () => {
     console.log("listening on 3000");
 })

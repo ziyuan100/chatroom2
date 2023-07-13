@@ -1,3 +1,4 @@
+// IF RESETTING DB, run userSeed first!
 // Seeds DB with 1 chatroom with all 5 seeded users included inside
 
 const mongoose = require('mongoose');
@@ -19,7 +20,7 @@ const seedDB = async () => {
     await Chatroom.deleteMany({});
     const chatroomName = "test"
     const users = await User.find({});
-    const chatroom = new Chatroom({name: chatroomName});
+    const chatroom = new Chatroom({name: chatroomName, creator: users[0]});
     for (const user of users){
         chatroom.users.push(user);
         user.chatrooms.push(chatroom);

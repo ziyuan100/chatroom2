@@ -102,7 +102,7 @@
         let data;
         const chatName = document.querySelector("#chatName").value;
         try {
-            ({ data } =  await axios.post('/newchat', {
+            ({ data } =  await axios.post('/newChat', {
                 name: chatName,
                 creator: "<%= currentUser._id %>",
                 users: usersList

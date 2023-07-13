@@ -1,10 +1,10 @@
 <% layout('layouts/boilerplate') %>
 
-<div class="container-fluid vh-100">
+<div class="container-fluid flex-grow-1 mh-100 overflow-auto">
     <div class="row h-100">
-        <div class="col-3 border-end border-dark p-0">  
+        <div class="col-3 border-end border-dark p-0">
             <% for (chatroom of currentUser.chatrooms) { %>
-                <div class="chatroom container bg-primary py-4 border-bottom border-dark" id="<%= chatroom._id %>" style="cursor: pointer">
+                <div class="chatroom container py-4 border-bottom border-dark" id="<%= chatroom._id %>" style="cursor: pointer">
                     <h2 style="pointer-events: none"><%= chatroom.name %></h2>
                     <h5 style="pointer-events: none">
                         <% for (user of chatroom.users) { %>
@@ -14,11 +14,11 @@
                 </div>
             <% } %>
         </div>
-        <div class="col-9 p-0" id="chatWindow">
+        <div class="col-9 p-0 overflow-auto h-100" id="chatWindow">
             <div class="w-100" id="messageWindow">
                 
             </div>
-
+            
             <div class="fixed-bottom start-50 w-70">
                 <form action="/chat" method="post" class="py-2" id="chatbox">
                     <div class="input-group">
@@ -41,6 +41,7 @@
     const currentUser = `<%= currentUser._id %>`;
     const messageWindow = document.querySelector("#messageWindow");
     const chatbox = document.querySelector("#chatbox");
+    const chatWindow = document.querySelector("#chatWindow");
 
     function displayMessage(message){
         const newMessage = document.createElement('div');
@@ -88,7 +89,13 @@
 
     function displayChat(chatroomData){
         messageWindow.innerHTML = 
-            `<nav class="navbar bg-secondary mb-4"><h4 class="px-3">${chatroomData.name}</h2> </nav>`
+            `
+            <nav class="navbar bg-secondary mb-4 sticky-top">
+                <h4 class="px-3 mb-0">${chatroomData.name}</h4>
+                <button type="button" class="btn btn-danger btn-sm me-2" onclick="leaveChat('${chatroomData._id}')">Leave</button>
+            </nav>
+            `
+        console.log(chatroomData)
         chatroomData.messages.forEach((message) => {
             displayMessage(message);
         })
@@ -98,6 +105,29 @@
         chatFunctionality.forEach((element) => {
             element.hidden = false;
         })
+
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function leaveChat(id){
+        // console.log(currentUser)
+        // console.log(id)
+        try{
+            await axios.post('/leaveChat', {
+                chatId: id
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            })
+
+            // temp solution, maybe todo implement socket to remove need for redirecting??
+            window.location.href = "/chat"
+        }
+        catch(e){
+            console.error(e)
+        }
     }
 
     const chatroomLinks = document.querySelectorAll(".chatroom");
@@ -118,11 +148,11 @@
 
                 // Kinda scuffed way of implementing highlighting the selected chatroom
                 chatroomLinksArray.forEach((chatroomLink => {
-                    chatroomLink.classList.remove("bg-light")
+                    chatroomLink.classList.remove("bg-primary")
                 }))
                 // console.log(chatroomData)
                 // querySelector unable to handle ids that start with numbers, so have to do it via [id =]
-                document.querySelector(`[id = "${chatroomData._id}"]`).classList.add("bg-light")
+                document.querySelector(`[id = "${chatroomData._id}"]`).classList.add("bg-primary")
             })
         })
     })
@@ -144,8 +174,9 @@
 
     function onMessage({ newMessage, chatroom }){
         if (chatroom == chatroomData._id){
-            // console.log(newMessage);
             displayMessage(newMessage);
+            // Scroll down to bottom on new message
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
     }
 
